@@ -1,262 +1,521 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>7th Grade Quiz + Arcade</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>7th Grade Quiz + Arcade — Fixed</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#f0f0f0; margin:0; padding:0; }
-    header { background:#4CAF50; color:#fff; padding:10px; text-align:center; }
-    .container { padding:20px; }
-    .hidden { display:none; }
-    .game-frame { width:100%; height:500px; border:none; }
-    .arcade-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
-    button { padding:10px 15px; margin:5px; cursor:pointer; }
-    canvas { background:#000; display:block; margin:auto; }
+    :root{--bg:#071022;--card:#0f1630;--accent:#6ae3ff;--muted:#98a0c6;color:#eaf4ff}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#041022,#071026);color:var(--color)}
+    header{padding:12px;background:#041324;color:var(--accent)}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:12px}
+    .card{background:linear-gradient(180deg,#071429,#0b1530);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.03)}
+    .subjects{display:flex;gap:8px;flex-wrap:wrap}
+    .subject{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.02);cursor:pointer}
+    button{padding:8px 10px;border-radius:8px;background:linear-gradient(#123050,#0f1830);color:#eaf4ff;border:1px solid rgba(255,255,255,.03);cursor:pointer}
+    input{padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--color)}
+    .arcade-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+    .game-card{background:rgba(255,255,255,.02);padding:8px;border-radius:8px;display:flex;flex-direction:column;gap:8px}
+    .small{font-size:13px;color:var(--muted)}
+    #gameArea{min-height:420px;display:flex;align-items:center;justify-content:center}
+    canvas{background:#000;display:block;margin:0 auto;border-radius:6px}
   </style>
 </head>
 <body>
   <header>
-    <h1>7th Grade Quiz + Arcade</h1>
-    <div>Energy: <span id="energy">0</span> | Play Time: <span id="playTime">0</span>s</div>
+    <div class="wrap">
+      <h1 style="margin:0">7th Grade Quiz + Arcade — Fixed</h1>
+      <div class="small">Energy: <strong id="hudEnergy">0</strong> • Play Time: <strong id="hudTime">0</strong>s</div>
+    </div>
   </header>
-  <div class="container">
-    <div id="menu">
-      <h2>Select Subject</h2>
-      <button onclick="startQuiz('Math')">Math</button>
-      <button onclick="startQuiz('Science')">Science</button>
-      <button onclick="startQuiz('ELA')">ELA</button>
-      <button onclick="startQuiz('Social Studies')">Social Studies</button>
-      <h2>Shop</h2>
-      <button onclick="buyUpgrade('scholar')">Scholar (More energy/question)</button>
-      <button onclick="buyUpgrade('timeSaver')">Time Saver (More seconds/energy)</button>
-      <button onclick="convertEnergy()">Convert Energy → Play Time</button>
-      <h2>Arcade</h2>
-      <div class="arcade-grid" id="arcade"></div>
-    </div>
-    <div id="quiz" class="hidden">
-      <h2 id="quizSubject"></h2>
-      <p id="question"></p>
-      <input type="text" id="answer" />
-      <button onclick="submitAnswer()">Submit</button>
-      <button onclick="backToMenu()">Back</button>
-    </div>
-    <div id="game" class="hidden">
-      <div id="gameContainer"></div>
-      <button onclick="closeGame()">Close Game</button>
+
+  <main class="wrap grid" style="margin-top:12px">
+    <!-- LEFT: Quiz -->
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="small">Select a subject (100 local Qs each). Use AI or host later if you want infinite questions.</div>
+          <div class="subjects" id="subjects"></div>
+        </div>
+        <div style="min-width:220px">
+          <div class="small">Economy</div>
+          <div class="small">Energy/Correct: <span id="txtEPQ">1</span></div>
+          <div class="small">Sec/Energy: <span id="txtSPE">10</span></div>
+        </div>
+      </div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid rgba(255,255,255,.03)">
+
+      <div id="quizCard">
+        <div class="small">Answered: <strong id="answered">0</strong></div>
+        <h3 id="qText">Choose a subject to begin</h3>
+        <div id="answerArea"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="submitBtn" disabled>Submit</button>
+          <button id="skipBtn">Skip</button>
+          <div id="feedback" class="small" style="margin-left:8px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Shop + Arcade -->
+    <aside style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <h4 style="margin:6px 0">Shop / Convert</h4>
+        <div class="small">Trade Energy for play time:</div>
+        <input id="tradeAmount" type="number" value="10" style="width:100%;margin-top:6px" />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="tradeBtn">Convert</button>
+          <button id="buyScholar">Buy Scholar (50)</button>
+          <button id="buyTime">Buy TimeSaver (50)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="margin:6px 0">Arcade — 30 slots</h4>
+        <div class="small">Built-in mini-games — click Play. Empty slots accept a URL (edit later).</div>
+        <div class="arcade-grid" id="games"></div>
+      </div>
+
+      <div class="card small">
+        Hosting tip: upload this file as index.html to a GitHub Pages repo for free static hosting. To use AI securely, add a serverless proxy (Vercel/Netlify).
+      </div>
+    </aside>
+  </main>
+
+  <!-- Game Modal Area (simple) -->
+  <div class="wrap" style="margin-top:12px">
+    <div id="gameWrapper" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong id="gameTitle">Game</strong></div>
+        <div>
+          <button id="closeGameBtn">Exit</button>
+        </div>
+      </div>
+      <div id="gameArea" style="margin-top:12px"></div>
     </div>
   </div>
 
-  <script>
-    // ---------------- STATS ----------------
-    let energy = 0;
-    let playTime = 0;
-    let energyPerQ = 1;
-    let secPerEnergy = 10;
+<script>
+/* ---------- STATE ---------- */
+const state = {
+  energy: 0,
+  playSec: 0,
+  answered: 0,
+  scholarLvl: 0,
+  timeLvl: 0,
+  epqBase: 1,
+  speBase: 10
+};
 
-    // ---------------- QUESTIONS ----------------
-    const questions = [];
-    function generateQuestions(){
-      // Math (100)
-      for(let i=1;i<=100;i++){
-        let a=Math.floor(Math.random()*20)+1;
-        let b=Math.floor(Math.random()*20)+1;
-        let op=['+','-','*'][i%3];
-        let ans=eval(a+op+b);
-        questions.push({subject:'Math',q:`(${i}) What is ${a} ${op} ${b}?`,a:ans.toString()});
-      }
-      // Science (10 repeated for 100)
-      const scienceQs=[
-        ["What planet is known as the Red Planet?","Mars"],
-        ["What gas do humans need to breathe?","Oxygen"],
-        ["What is H2O commonly known as?","Water"],
-        ["What force pulls objects toward Earth?","Gravity"],
-        ["What galaxy is Earth located in?","Milky Way"],
-        ["What part of the plant makes food?","Leaf"],
-        ["What organ pumps blood?","Heart"],
-        ["What is the process of liquid turning to gas?","Evaporation"],
-        ["What is the center of an atom called?","Nucleus"],
-        ["What gas do plants release during photosynthesis?","Oxygen"]
-      ];
-      for(let i=0;i<100;i++){
-        let pair=scienceQs[i%scienceQs.length];
-        questions.push({subject:'Science',q:`(${i+1}) ${pair[0]}`,a:pair[1]});
-      }
-      // ELA (100)
-      const elaQs=[
-        ["What is a synonym for 'happy'?","joyful"],
-        ["What is an antonym for 'big'?","small"],
-        ["Fill in the blank: Their ___ going to the park.","they're"],
-        ["What is the plural of 'mouse'?","mice"],
-        ["What punctuation ends a question?","?"],
-        ["What part of speech is 'quickly'?","adverb"],
-        ["What is the past tense of 'run'?","ran"],
-        ["What do we call words that sound alike but have different meanings?","homonyms"],
-        ["What is the opposite of 'cold'?","hot"],
-        ["What is the main character in a story called?","protagonist"]
-      ];
-      for(let i=0;i<100;i++){
-        let pair=elaQs[i%elaQs.length];
-        questions.push({subject:'ELA',q:`(${i+1}) ${pair[0]}`,a:pair[1]});
-      }
-      // Social Studies (100)
-      const socialQs=[
-        ["Who was the first President of the USA?","George Washington"],
-        ["What year did World War II end?","1945"],
-        ["What is the capital of France?","Paris"],
-        ["Which ancient civilization built the pyramids?","Egyptians"],
-        ["What ocean is on the east coast of the USA?","Atlantic"],
-        ["Who wrote the Declaration of Independence?","Thomas Jefferson"],
-        ["What is the largest continent?","Asia"],
-        ["What is the capital of Japan?","Tokyo"],
-        ["What country is known as the Land of the Rising Sun?","Japan"],
-        ["Who discovered America in 1492?","Christopher Columbus"]
-      ];
-      for(let i=0;i<100;i++){
-        let pair=socialQs[i%socialQs.length];
-        questions.push({subject:'Social Studies',q:`(${i+1}) ${pair[0]}`,a:pair[1]});
-      }
-    }
-    generateQuestions();
+/* ---------- QUESTIONS (100 each) ---------- */
+const POOL = { math:[], science:[], ela:[], social:[] };
 
-    let currentQ;
-    function startQuiz(subject){
-      document.getElementById('menu').classList.add('hidden');
-      document.getElementById('quiz').classList.remove('hidden');
-      document.getElementById('quizSubject').innerText=subject;
-      askQuestion(subject);
-    }
-    function askQuestion(subject){
-      const pool=questions.filter(q=>q.subject===subject);
-      currentQ=pool[Math.floor(Math.random()*pool.length)];
-      document.getElementById('question').innerText=currentQ.q;
-      document.getElementById('answer').value='';
-    }
-    function submitAnswer(){
-      const ans=document.getElementById('answer').value.trim();
-      if(ans.toLowerCase()===currentQ.a.toLowerCase()){
-        energy+=energyPerQ;
-        updateStats();
-        alert('Correct! +'+energyPerQ+' energy');
-      } else {
-        alert('Incorrect! Correct answer was: '+currentQ.a);
-      }
-      askQuestion(currentQ.subject);
-    }
-    function backToMenu(){
-      document.getElementById('quiz').classList.add('hidden');
-      document.getElementById('menu').classList.remove('hidden');
-    }
+(function buildPools(){
+  // Math: 100 distinct arithmetic-type questions
+  for(let i=1;i<=100;i++){
+    const a = (i*3)%20 + 1, b = (i*7)%18 + 1, op = ['+','-','*'][i%3];
+    POOL.math.push({id:`m${i}`, q:`(${i}) What is ${a} ${op} ${b}?`, a: String(eval(String(a)+op+String(b)))});
+  }
+  // Science (10 rotated to 100)
+  const sc = [
+    ["What planet is known as the Red Planet?","Mars"],
+    ["What gas do humans need to breathe?","Oxygen"],
+    ["What is H2O commonly known as?","Water"],
+    ["What force pulls objects toward Earth?","Gravity"],
+    ["What galaxy is Earth located in?","Milky Way"],
+    ["What part of a plant makes food?","Leaf"],
+    ["What organ pumps blood?","Heart"],
+    ["What is the process liquid→gas called?","Evaporation"],
+    ["What is the center of an atom called?","Nucleus"],
+    ["What gas do plants release during photosynthesis?","Oxygen"]
+  ];
+  for(let i=0;i<100;i++) POOL.science.push({id:`s${i+1}`, q:`(${i+1}) ${sc[i%sc.length][0]}`, a: sc[i%sc.length][1]});
 
-    // ---------------- SHOP ----------------
-    function buyUpgrade(type){
-      if(type==='scholar' && energy>=50){
-        energy-=50; energyPerQ++;
-        alert('Scholar upgrade purchased!');
-      }
-      if(type==='timeSaver' && energy>=50){
-        energy-=50; secPerEnergy+=5;
-        alert('Time Saver upgrade purchased!');
-      }
-      updateStats();
-    }
-    function convertEnergy(){
-      if(energy>0){
-        playTime+=energy*secPerEnergy;
-        energy=0;
-        updateStats();
-      }
-    }
-    function updateStats(){
-      document.getElementById('energy').innerText=energy;
-      document.getElementById('playTime').innerText=playTime;
-    }
+  // ELA (10 rotated)
+  const el = [
+    ["Synonym of 'happy'?","joyful"],
+    ["Antonym of 'big'?","small"],
+    ["Fill: Their ___ going to the park.","they're"],
+    ["Plural of 'mouse'?","mice"],
+    ["What punctuation ends a question?","?"],
+    ["Part of speech: 'quickly'?","adverb"],
+    ["Past of 'run'?","ran"],
+    ["Words that sound alike but differ: ?","homonyms"],
+    ["Opposite of 'cold'?","hot"],
+    ["Main character called?","protagonist"]
+  ];
+  for(let i=0;i<100;i++) POOL.ela.push({id:`e${i+1}`, q:`(${i+1}) ${el[i%el.length][0]}`, a: el[i%el.length][1]});
 
-    // ---------------- GAMES ----------------
-    const GAMES = [
-      {name:"Snake",func:simpleSnake},
-      {name:"Pong",func:simplePong},
-      {name:"Breakout",func:simpleBreakout},
-      {name:"Tetris",func:simpleTetris},
-      {name:"Flappy",func:simpleFlappy}
-    ];
-    for(let i=GAMES.length;i<30;i++){ GAMES.push({name:"Game "+(i+1),func:null}); }
+  // Social (10 rotated)
+  const so = [
+    ["Who was the first US President?","George Washington"],
+    ["Year WWII ended?","1945"],
+    ["Capital of France?","Paris"],
+    ["Which civilization built the pyramids?","Egyptians"],
+    ["Ocean on US East Coast?","Atlantic"],
+    ["Who wrote the Declaration of Independence?","Thomas Jefferson"],
+    ["Largest continent?","Asia"],
+    ["Capital of Japan?","Tokyo"],
+    ["Country known as Land of Rising Sun?","Japan"],
+    ["Who sailed to Americas in 1492?","Christopher Columbus"]
+  ];
+  for(let i=0;i<100;i++) POOL.social.push({id:`h${i+1}`, q:`(${i+1}) ${so[i%so.length][0]}`, a: so[i%so.length][1]});
+})();
 
-    const arcadeDiv=document.getElementById('arcade');
-    GAMES.forEach((g,i)=>{
-      let btn=document.createElement('button');
-      btn.innerText=g.name;
-      btn.onclick=()=>openGame(g);
-      arcadeDiv.appendChild(btn);
+/* ---------- UI wiring ---------- */
+const subjMap = { Math:'math', Science:'science', ELA:'ela', 'Social Studies':'social' };
+const subjectsEl = document.getElementById('subjects');
+Object.keys(subjMap).forEach(name=>{
+  const b = document.createElement('button'); b.className='subject'; b.textContent=name;
+  b.addEventListener('click',()=>startQuiz(name));
+  subjectsEl.appendChild(b);
+});
+
+const qText = document.getElementById('qText');
+const answerArea = document.getElementById('answerArea');
+const submitBtn = document.getElementById('submitBtn');
+const skipBtn = document.getElementById('skipBtn');
+const feedback = document.getElementById('feedback');
+const answeredEl = document.getElementById('answered');
+
+submitBtn.addEventListener('click',checkAnswer);
+skipBtn.addEventListener('click',()=>loadNext());
+
+document.getElementById('tradeBtn').addEventListener('click',convertEnergy);
+document.getElementById('buyScholar').addEventListener('click',()=>buy('scholar'));
+document.getElementById('buyTime').addEventListener('click',()=>buy('time'));
+document.getElementById('closeGameBtn').addEventListener('click',closeGame);
+
+function updateHUD(){
+  document.getElementById('hudEnergy').textContent = state.energy;
+  document.getElementById('hudTime').textContent = state.playSec;
+  document.getElementById('txtEPQ').textContent = state.epqBase + state.scholarLvl*2;
+  document.getElementById('txtSPE').textContent = state.speBase + state.timeLvl*3;
+  answeredEl.textContent = state.answered;
+}
+updateHUD();
+
+/* ---------- QUIZ flow ---------- */
+let current = {subject:null, q:null};
+function startQuiz(subjectLabel){
+  current.subject = subjMap[subjectLabel];
+  document.querySelector('section.card').scrollIntoView({behavior:'smooth'});
+  showQuestion();
+}
+function pickLocal(){
+  const pool = POOL[current.subject];
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function showQuestion(){
+  feedback.textContent=''; submitBtn.disabled=false;
+  current.q = pickLocal();
+  qText.textContent = current.q.q;
+  answerArea.innerHTML = '';
+  const input = document.createElement('input'); input.type='text'; input.id='txtAnswer'; input.style.width='100%';
+  answerArea.appendChild(input);
+  input.focus();
+}
+function checkAnswer(){
+  const v = (document.getElementById('txtAnswer').value||'').trim().toLowerCase();
+  const correct = String(current.q.a).trim().toLowerCase();
+  if(v === correct){
+    const gain = state.epqBase + state.scholarLvl*2;
+    state.energy += gain;
+    state.answered++;
+    feedback.innerHTML = `<span style="color:#7fffd4">Correct! +${gain} Energy</span>`;
+  } else {
+    feedback.innerHTML = `<span style="color:#ff9b9b">Wrong. Answer: ${current.q.a}</span>`;
+  }
+  updateHUD();
+  setTimeout(showQuestion,700);
+}
+function loadNext(){ showQuestion(); }
+
+/* ---------- SHOP / TRADE ---------- */
+function convertEnergy(){
+  const n = Number(document.getElementById('tradeAmount').value||0);
+  if(!Number.isFinite(n) || n<=0){ alert('Enter positive number'); return;}
+  if(n>state.energy){ alert('Not enough energy'); return; }
+  const secPer = state.speBase + state.timeLvl*3;
+  state.energy -= n;
+  state.playSec += n * secPer;
+  updateHUD();
+  alert(`Converted ${n} Energy → ${n*secPer} sec`);
+}
+function buy(which){
+  if(which==='scholar'){
+    if(state.energy < 50){ alert('Need 50 energy'); return; }
+    state.energy -= 50; state.scholarLvl++;
+  } else {
+    if(state.energy < 50){ alert('Need 50 energy'); return; }
+    state.energy -= 50; state.timeLvl++;
+  }
+  updateHUD();
+}
+
+/* ---------- ARCADE / GAMES ---------- */
+/* Each game's init(container) must return a stop() function that cleans up. */
+const GAMES = [
+  { title:'Snake', init: initSnake },
+  { title:'Pong', init: initPong },
+  { title:'Breakout', init: initBreakout },
+  { title:'Flappy', init: initFlappy },
+  { title:'2048 (lite)', init: init2048 }
+];
+while(GAMES.length < 30) GAMES.push({ title:`Slot ${GAMES.length+1}`, init: null });
+
+const gamesEl = document.getElementById('games');
+GAMES.forEach((g, idx)=>{
+  const div = document.createElement('div'); div.className='game-card';
+  const title = document.createElement('div'); title.style.fontWeight='700'; title.textContent = g.title;
+  const desc = document.createElement('div'); desc.className='small'; desc.textContent = g.init ? 'Built-in' : 'Empty';
+  const controls = document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
+  const play = document.createElement('button'); play.textContent='Play'; play.onclick = ()=> launchGame(idx);
+  const setUrl = document.createElement('button'); setUrl.textContent='Set URL'; setUrl.onclick = ()=>{
+    const url = prompt('Enter embeddable game URL (optional):');
+    if(url !== null) { GAMES[idx].external = url; desc.textContent = url ? 'External' : (g.init ? 'Built-in' : 'Empty'); }
+  };
+  controls.appendChild(play); controls.appendChild(setUrl);
+  div.appendChild(title); div.appendChild(desc); div.appendChild(controls);
+  gamesEl.appendChild(div);
+});
+
+let activeStop = null;
+let playTicker = null;
+
+function launchGame(slotIdx){
+  const g = GAMES[slotIdx];
+  if(g.external){
+    // play external iframe
+    if(state.playSec <= 0){ alert('No play time — convert energy first'); return; }
+    openGameWindow(g.title, (container)=>{
+      const iframe = document.createElement('iframe'); iframe.src = g.external; iframe.width = '800'; iframe.height = '600'; iframe.style.border='none';
+      container.appendChild(iframe);
+      return ()=>{ try{ iframe.remove(); }catch(e){} };
     });
+    return;
+  }
+  if(!g.init){ alert('No game in this slot. Set a URL or choose another slot.'); return; }
+  if(state.playSec <= 0){ alert('No play time — convert energy first'); return; }
+  openGameWindow(g.title, g.init);
+}
 
-    let playTimer;
-    function openGame(game){
-      if(!game.func){alert('No game here yet.');return;}
-      if(playTime<=0){alert('Not enough play time!');return;}
-      document.getElementById('menu').classList.add('hidden');
-      document.getElementById('game').classList.remove('hidden');
-      document.getElementById('gameContainer').innerHTML=game.func();
-      playTimer=setInterval(()=>{
-        playTime--;
-        updateStats();
-        if(playTime<=0){
-          alert('Out of time!');
-          closeGame();
-        }
-      },1000);
+function openGameWindow(title, initFn){
+  // clear previous if any
+  if(activeStop) { try{ activeStop(); } catch(e){} activeStop = null; }
+  // show game wrapper
+  document.getElementById('gameTitle').textContent = title;
+  document.getElementById('gameWrapper').style.display = 'block';
+  const container = document.getElementById('gameArea');
+  container.innerHTML = ''; // start fresh
+  activeStop = initFn(container) || null;
+  // start playSec countdown
+  if(playTicker) clearInterval(playTicker);
+  playTicker = setInterval(()=>{
+    state.playSec--;
+    updateHUD();
+    if(state.playSec <= 0){
+      clearInterval(playTicker); playTicker = null;
+      alert('Play time ended');
+      closeGame();
     }
-    function closeGame(){
-      document.getElementById('game').classList.add('hidden');
-      document.getElementById('menu').classList.remove('hidden');
-      document.getElementById('gameContainer').innerHTML='';
-      clearInterval(playTimer);
-    }
+  }, 1000);
+}
 
-    // ---------------- MINI GAMES ----------------
-    function simpleSnake(){
-      return `
-      <canvas id="snakeCanvas" width="400" height="400"></canvas>
-      <script>
-        const canvas=document.getElementById("snakeCanvas");
-        const ctx=canvas.getContext("2d");
-        const box=20;
-        let snake=[{x:9*box,y:10*box}];
-        let food={x:Math.floor(Math.random()*19+1)*box,y:Math.floor(Math.random()*19+1)*box};
-        let d;
-        document.addEventListener("keydown",dir);
-        function dir(e){ if(e.keyCode==37 && d!="RIGHT")d="LEFT";
-          else if(e.keyCode==38 && d!="DOWN")d="UP";
-          else if(e.keyCode==39 && d!="LEFT")d="RIGHT";
-          else if(e.keyCode==40 && d!="UP")d="DOWN"; }
-        function draw(){
-          ctx.fillStyle="black";ctx.fillRect(0,0,400,400);
-          for(let i=0;i<snake.length;i++){ctx.fillStyle="lime";ctx.fillRect(snake[i].x,snake[i].y,box,box);}
-          ctx.fillStyle="red";ctx.fillRect(food.x,food.y,box,box);
-          let snakeX=snake[0].x; let snakeY=snake[0].y;
-          if(d=="LEFT")snakeX-=box; if(d=="UP")snakeY-=box; if(d=="RIGHT")snakeX+=box; if(d=="DOWN")snakeY+=box;
-          if(snakeX==food.x && snakeY==food.y){ food={x:Math.floor(Math.random()*19+1)*box,y:Math.floor(Math.random()*19+1)*box}; }
-          else{ snake.pop(); }
-          let newHead={x:snakeX,y:snakeY}; snake.unshift(newHead);
-        }
-        setInterval(draw,100);
-      <\\/script>
-      `;
-    }
-    function simplePong(){
-      return `<iframe src="https://pong-2.com/" width="600" height="400"></iframe>`;
-    }
-    function simpleBreakout(){
-      return `<iframe src="https://elgoog.im/breakout/" width="600" height="400"></iframe>`;
-    }
-    function simpleTetris(){
-      return `<iframe src="https://tetris.com/play-tetris" width="600" height="500"></iframe>`;
-    }
-    function simpleFlappy(){
-      return `<iframe src="https://flappybird.io/" width="400" height="600"></iframe>`;
-    }
+function closeGame(){
+  document.getElementById('gameWrapper').style.display = 'none';
+  if(activeStop){ try{ activeStop(); } catch(e){} activeStop = null; }
+  if(playTicker){ clearInterval(playTicker); playTicker = null; }
+}
 
-    updateStats();
-  </script>
+/* ---------- GAME IMPLEMENTATIONS (all return stop() ) ---------- */
+
+/* SNAKE */
+function initSnake(container){
+  const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 400; container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const box = 20;
+  let snake = [{x:9*box,y:10*box}];
+  let food = {x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box};
+  let dir = null;
+  let running = true;
+
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let i=0;i<snake.length;i++){ ctx.fillStyle='lime'; ctx.fillRect(snake[i].x, snake[i].y, box-1, box-1); }
+    ctx.fillStyle='red'; ctx.fillRect(food.x, food.y, box-1, box-1);
+    let headX = snake[0].x, headY = snake[0].y;
+    if(dir === 'LEFT') headX -= box; if(dir==='RIGHT') headX += box;
+    if(dir === 'UP') headY -= box; if(dir==='DOWN') headY += box;
+    // wrap around
+    headX = (headX + canvas.width) % canvas.width;
+    headY = (headY + canvas.height) % canvas.height;
+    if(headX === food.x && headY === food.y){
+      food = {x: Math.floor(Math.random()*19+1)*box, y: Math.floor(Math.random()*19+1)*box};
+      // grow by leaving tail as-is
+    } else {
+      snake.pop();
+    }
+    const newHead = {x: headX, y: headY};
+    // collision with self?
+    if(snake.some(p=>p.x===newHead.x && p.y===newHead.y)){
+      // reset snake
+      snake = [{x:9*box,y:10*box}]; dir = null;
+    } else snake.unshift(newHead);
+  }
+
+  function key(e){
+    if(e.key === 'ArrowLeft' && dir !== 'RIGHT') dir='LEFT';
+    if(e.key === 'ArrowRight' && dir !== 'LEFT') dir='RIGHT';
+    if(e.key === 'ArrowUp' && dir !== 'DOWN') dir='UP';
+    if(e.key === 'ArrowDown' && dir !== 'UP') dir='DOWN';
+  }
+  window.addEventListener('keydown', key);
+  const id = setInterval(()=>{ if(running) draw(); }, 120);
+
+  // stop function
+  return function stop(){
+    clearInterval(id);
+    window.removeEventListener('keydown', key);
+    try{ container.removeChild(canvas); }catch(e){}
+  };
+}
+
+/* PONG (simple) */
+function initPong(container){
+  const canvas = document.createElement('canvas'); canvas.width = 700; canvas.height = 360; container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const paddleH = 80;
+  let p1 = {y: 140}, p2 = {y: 140}, ball = {x: 350, y:180, vx:3, vy:2};
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#fff'; ctx.fillRect(10, p1.y, 10, paddleH); ctx.fillRect(canvas.width-20, p2.y, 10, paddleH);
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, 7, 0, Math.PI*2); ctx.fill();
+  }
+  function step(){
+    ball.x += ball.vx; ball.y += ball.vy;
+    if(ball.y < 7 || ball.y > canvas.height-7) ball.vy *= -1;
+    // AI for p2
+    p2.y += (ball.y - (p2.y + paddleH/2)) * 0.05;
+    if(ball.x < 26 && ball.y > p1.y && ball.y < p1.y + paddleH) ball.vx *= -1.05;
+    if(ball.x > canvas.width-26 && ball.y > p2.y && ball.y < p2.y + paddleH) ball.vx *= -1.05;
+    if(ball.x < 0 || ball.x > canvas.width){ ball.x = 350; ball.y = 180; ball.vx = 3*(Math.random()>0.5?1:-1); ball.vy = 2*(Math.random()>0.5?1:-1); }
+    draw();
+  }
+  function mouseMove(e){
+    const rect = canvas.getBoundingClientRect(); p1.y = Math.max(0, Math.min(canvas.height - paddleH, e.clientY - rect.top - paddleH/2));
+  }
+  canvas.addEventListener('mousemove', mouseMove);
+  const id = setInterval(step, 16);
+  return function stop(){ clearInterval(id); canvas.removeEventListener('mousemove', mouseMove); try{ container.removeChild(canvas);}catch(e){} };
+}
+
+/* BREAKOUT (very small) */
+function initBreakout(container){
+  const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 360; container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let paddle = {x: 260, w: 120};
+  let ball = {x: 320, y: 250, vx: 3, vy: -3};
+  const bricks = [];
+  const rows = 4, cols = 8;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      bricks.push({x: 10 + c*78, y: 30 + r*24, w:70, h:18, alive:true});
+    }
+  }
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#fff'; ctx.fillRect(paddle.x, 332, paddle.w, 8);
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, 6, 0, Math.PI*2); ctx.fill();
+    bricks.forEach(b=>{ if(b.alive){ ctx.fillStyle='orange'; ctx.fillRect(b.x,b.y,b.w,b.h); }});
+  }
+  function step(){
+    ball.x += ball.vx; ball.y += ball.vy;
+    if(ball.x < 6 || ball.x > canvas.width-6) ball.vx *= -1;
+    if(ball.y < 6) ball.vy *= -1;
+    if(ball.y > canvas.height-6){ ball.x=320; ball.y=250; ball.vx=3; ball.vy=-3; }
+    if(ball.y > 320 && ball.x > paddle.x && ball.x < paddle.x + paddle.w){ ball.vy *= -1; }
+    for(let b of bricks){
+      if(!b.alive) continue;
+      if(ball.x > b.x && ball.x < b.x + b.w && ball.y > b.y && ball.y < b.y + b.h){
+        b.alive = false; ball.vy *= -1; break;
+      }
+    }
+    draw();
+  }
+  function mouse(e){ const rect = canvas.getBoundingClientRect(); paddle.x = Math.max(0, Math.min(canvas.width-paddle.w, e.clientX - rect.left - paddle.w/2)); }
+  canvas.addEventListener('mousemove', mouse);
+  const id = setInterval(step, 16);
+  return function stop(){ clearInterval(id); canvas.removeEventListener('mousemove', mouse); try{ container.removeChild(canvas);}catch(e){} };
+}
+
+/* FLAPPY (tiny) */
+function initFlappy(container){
+  const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 600; container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  let bird = {x:80, y:300, vy:0};
+  let pipes = [];
+  let ticks = 0;
+  function spawn(){ const gap=140; const h = 80 + Math.random()*260; pipes.push({x:canvas.width, top:h - gap/2, bottom:h + gap/2}); }
+  function draw(){
+    ctx.fillStyle='#87ceeb'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='yellow'; ctx.fillRect(bird.x-12, bird.y-12, 24, 24);
+    ctx.fillStyle='green';
+    for(let p of pipes){ ctx.fillRect(p.x, 0, 52, p.top); ctx.fillRect(p.x, p.bottom, 52, canvas.height - p.bottom); }
+  }
+  function step(){
+    ticks++;
+    bird.vy += 0.6; bird.y += bird.vy;
+    for(let p of pipes){ p.x -= 2.6; }
+    if(ticks % 120 === 0) spawn();
+    pipes = pipes.filter(p => p.x > -60);
+    // collision simple
+    for(let p of pipes){ if(bird.x+12 > p.x && bird.x-12 < p.x+52 && (bird.y-12 < p.top || bird.y+12 > p.bottom)){ // reset
+        bird = {x:80,y:300,vy:0}; pipes = []; ticks=0; break;
+      } }
+    if(bird.y > canvas.height + 40 || bird.y < -40) bird = {x:80,y:300,vy:0};
+    draw();
+  }
+  function flap(){ bird.vy = -8; }
+  canvas.addEventListener('mousedown', flap);
+  window.addEventListener('keydown', e=>{ if(e.key===' ') flap(); });
+  const id = setInterval(step, 20);
+  return function stop(){ clearInterval(id); canvas.removeEventListener('mousedown', flap); window.removeEventListener('keydown', flap); try{ container.removeChild(canvas);}catch(e){} };
+}
+
+/* 2048-lite (tiny) */
+function init2048(container){
+  // Basic 4x4 grid, arrow-key moves (not full robustness, but playable)
+  const wrapper = document.createElement('div'); wrapper.style.width='420px'; wrapper.style.margin='0 auto'; wrapper.style.textAlign='center'; container.appendChild(wrapper);
+  const gridEl = document.createElement('div'); gridEl.style.display='grid'; gridEl.style.gridTemplateColumns='repeat(4,1fr)'; gridEl.style.gap='8px'; gridEl.style.maxWidth='420px';
+  wrapper.appendChild(gridEl);
+  const cells = Array(16).fill(0);
+  function spawn(){ const empties = cells.map((v,i)=>v?null:i).filter(i=>i!==null); if(!empties.length) return; cells[empties[Math.floor(Math.random()*empties.length)]] = Math.random()<0.9?2:4; render(); }
+  function render(){ gridEl.innerHTML=''; for(let i=0;i<16;i++){ const c = document.createElement('div'); c.style.padding='22px'; c.style.background='#111'; c.style.color='#fff'; c.style.borderRadius='6px'; c.style.fontWeight='700'; c.textContent = cells[i]||''; gridEl.appendChild(c);} }
+  function compress(arr){ const b=arr.filter(x=>x); for(let i=0;i<b.length-1;i++){ if(b[i]===b[i+1]){ b[i] *= 2; b.splice(i+1,1);} } while(b.length<4) b.push(0); return b; }
+  function moveLeft(){
+    for(let r=0;r<4;r++){ const row = cells.slice(r*4, r*4+4); const nv = compress(row); for(let c=0;c<4;c++) cells[r*4+c] = nv[c]; }
+    spawn();
+  }
+  function moveRight(){ for(let r=0;r<4;r++){ const row = cells.slice(r*4, r*4+4).reverse(); const nv = compress(row).reverse(); for(let c=0;c<4;c++) cells[r*4+c] = nv[c]; } spawn(); }
+  function moveUp(){ for(let c=0;c<4;c++){ const col=[cells[c],cells[c+4],cells[c+8],cells[c+12]]; const nv = compress(col); for(let r=0;r<4;r++) cells[r*4+c]=nv[r]; } spawn(); }
+  function moveDown(){ for(let c=0;c<4;c++){ const col=[cells[c],cells[c+4],cells[c+8],cells[c+12]].reverse(); const nv=compress(col).reverse(); for(let r=0;r<4;r++) cells[r*4+c]=nv[r]; } spawn(); }
+  function keyHandler(e){ if(e.key==='ArrowLeft') moveLeft(); if(e.key==='ArrowRight') moveRight(); if(e.key==='ArrowUp') moveUp(); if(e.key==='ArrowDown') moveDown(); }
+  window.addEventListener('keydown', keyHandler);
+  // init:
+  spawn(); spawn();
+  return function stop(){ window.removeEventListener('keydown', keyHandler); try{ container.removeChild(wrapper);}catch(e){} };
+}
+
+/* ---------- Init HUD ---------- */
+updateHUD();
+
+/* ---------- Expose debug (optional) ---------- */
+window._QUIZ = { state, POOL, GAMES };
+
+</script>
 </body>
 </html>
